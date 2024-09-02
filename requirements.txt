@@ -9,3 +9,4 @@ librosa
 omegaconf
 grain
 tensorflow
+transformers
