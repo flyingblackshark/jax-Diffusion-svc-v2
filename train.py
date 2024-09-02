@@ -50,6 +50,7 @@ class Trainer:
         profile: bool = False,
         half_precision: bool = False,
     ) -> None:
+        self.step = 0
         self.optimizer = optax.chain(
             optax.adam(learning_rate=hp.train.learning_rate),
         )
@@ -267,6 +268,16 @@ class Trainer:
             diff_state=ocp.args.StandardSave(self.diff_train_state),
             naive_state=ocp.args.StandardSave(self.naive_train_state)),
             )  # type: ignore
+    def restore_checkpoint(self):
+        step = self.checkpoint_manager.latest_step() 
+        states=self.checkpoint_manager.restore(step,args=ocp.args.Composite(
+        diff_state=ocp.args.StandardSave(self.diff_train_state),
+        naive_state=ocp.args.StandardSave(self.naive_train_state)),
+        )
+        self.diff_train_state=states['diff_state']
+        self.naive_train_state=states['naive_state']
+        self.step = step + 1
+
 
 
 # def run_eval(
@@ -360,6 +371,10 @@ def main(
     hp = OmegaConf.load("configs/base.yaml")
     rng = random.PRNGKey(hp.train.seed)
     trainer = Trainer(rng, hp, profile, half_precision)
+    
+    if trainer.checkpoint_manager.latest_step() is not None:
+        trainer.restore_checkpoint()
+
     data_iterator = get_dataset(hp,trainer.mesh)
     init_epoch = 0
     example_batch = None
