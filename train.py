@@ -50,7 +50,7 @@ class Trainer:
         profile: bool = False,
         half_precision: bool = False,
     ) -> None:
-        self.step = 0
+        self.init_step = 0
         self.optimizer = optax.chain(
             optax.adam(learning_rate=hp.train.learning_rate),
         )
@@ -276,7 +276,7 @@ class Trainer:
         )
         self.diff_train_state=states['diff_state']
         self.naive_train_state=states['naive_state']
-        self.step = step + 1
+        self.init_step = step + 1
 
 
 
@@ -371,15 +371,14 @@ def main(
     hp = OmegaConf.load("configs/base.yaml")
     rng = random.PRNGKey(hp.train.seed)
     trainer = Trainer(rng, hp, profile, half_precision)
-    
+
     if trainer.checkpoint_manager.latest_step() is not None:
         trainer.restore_checkpoint()
 
     data_iterator = get_dataset(hp,trainer.mesh)
-    init_epoch = 0
     example_batch = None
 
-    for step in range(init_epoch, hp.train.total_steps):
+    for step in range(trainer.init_step, hp.train.total_steps):
         example_batch = next(data_iterator)
         
         # Train step
