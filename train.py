@@ -31,8 +31,8 @@ from profiling import memory_usage_params, trace_module_calls, get_peak_flops
 jax.experimental.compilation_cache.compilation_cache.set_cache_dir("jit_cache")
 
 
-print("JAX devices: ", jax.devices())
-logger.info(f"JAX host count: {jax.device_count()}")
+#print("JAX devices: ", jax.devices())
+#logger.info(f"JAX host count: {jax.device_count()}")
 
 
 # def fmt_float_display(val: float | int) -> str:
@@ -417,5 +417,4 @@ def main(
 
 if __name__ == "__main__":
     jax.config.update("jax_default_prng_impl", "unsafe_rbg")
-    main()
-    #fire.Fire(main)
+    fire.Fire(main)
