@@ -214,7 +214,7 @@ class Trainer:
             diff_train_state_sharding,
             x_sharding,
             x_sharding,
-            x_sharding,
+            None,
         )
         naive_step_in_sharding: Any = (
             naive_train_state_sharding,
@@ -363,11 +363,12 @@ def main(
     data_iterator = get_dataset(hp,trainer.mesh)
     init_epoch = 0
     example_batch = None
+
     for step in range(init_epoch, hp.train.total_steps):
         example_batch = next(data_iterator)
         
         # Train step
-        step_key = random.PRNGKey(step)
+        step_key = jax.jit(jax.random.fold_in)(rng, step)
 
         if profile:
             # profile_ctx = jax.profiler.trace(
