@@ -417,4 +417,5 @@ def main(
 
 if __name__ == "__main__":
     jax.config.update("jax_default_prng_impl", "unsafe_rbg")
-    fire.Fire(main)
+    main()
+    #fire.Fire(main)
