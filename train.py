@@ -214,8 +214,7 @@ class Trainer:
             diff_train_state_sharding,
             x_sharding,
             x_sharding,
-            None
-            #x_sharding,
+            x_sharding,
         )
         naive_step_in_sharding: Any = (
             naive_train_state_sharding,
@@ -232,7 +231,6 @@ class Trainer:
             get_sharding_for_spec(PartitionSpec()),
             naive_train_state_sharding,
             x_sharding
-            #get_sharding_for_spec(PartitionSpec("data")),
         )
         self.diff_train_step: Wrapped = jax.jit(
             functools.partial(rectified_flow_step, training=True),
@@ -419,4 +417,6 @@ def main(
 
 if __name__ == "__main__":
     jax.config.update("jax_default_prng_impl", "unsafe_rbg")
+    if "xla_tpu_spmd_rng_bit_generator_unsafe" not in os.environ.get("LIBTPU_INIT_ARGS", ""):
+        os.environ["LIBTPU_INIT_ARGS"] = os.environ.get("LIBTPU_INIT_ARGS", "") + " --xla_tpu_spmd_rng_bit_generator_unsafe=true"
     fire.Fire(main)
