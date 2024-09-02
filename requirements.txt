@@ -8,5 +8,5 @@ loguru
 librosa
 omegaconf
 grain
-tensorflow
+tensorflow-cpu
 transformers
