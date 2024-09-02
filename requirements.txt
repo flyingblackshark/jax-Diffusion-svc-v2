@@ -1,10 +1,9 @@
-jax
 optax
 flax
 tqdm
 fire
-datasets[jax]
-tensorboardX
 imageio
 orbax
 loguru
+librosa
+omegaconf
