@@ -214,7 +214,8 @@ class Trainer:
             diff_train_state_sharding,
             x_sharding,
             x_sharding,
-            x_sharding,
+            None
+            #x_sharding,
         )
         naive_step_in_sharding: Any = (
             naive_train_state_sharding,

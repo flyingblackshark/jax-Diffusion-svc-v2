@@ -10,3 +10,5 @@ vae_mds
 submit_*
 *.out.*
 .vscode/
+hubert/pytorch_model.bin
+configs/
