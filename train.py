@@ -230,8 +230,7 @@ class Trainer:
         naive_step_out_sharding: Any = (
             get_sharding_for_spec(PartitionSpec()),
             naive_train_state_sharding,
-            None,
-            #get_sharding_for_spec(PartitionSpec("data")),
+            get_sharding_for_spec(PartitionSpec("data")),
         )
         self.diff_train_step: Wrapped = jax.jit(
             functools.partial(rectified_flow_step, training=True),
@@ -418,4 +417,5 @@ def main(
 
 if __name__ == "__main__":
     jax.config.update("jax_default_prng_impl", "unsafe_rbg")
-    fire.Fire(main)
+    main()
+    #fire.Fire(main)
