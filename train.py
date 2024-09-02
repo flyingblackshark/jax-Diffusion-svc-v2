@@ -47,12 +47,11 @@ class Trainer:
         self,
         rng: PRNGKey,
         hp : Any,
-        learning_rate: float = 5e-5,
         profile: bool = False,
         half_precision: bool = False,
     ) -> None:
         self.optimizer = optax.chain(
-            optax.adam(learning_rate=learning_rate),
+            optax.adam(learning_rate=hp.train.learning_rate),
         )
         init_key, self.train_key = random.split(rng, 2)
 
@@ -344,7 +343,6 @@ class Trainer:
 
 
 def main(
-    learning_rate: float = 1e-4,
     profile: bool = False,
     half_precision: bool = False,
     **kwargs,
@@ -363,7 +361,7 @@ def main(
     """
     hp = OmegaConf.load("configs/base.yaml")
     rng = random.PRNGKey(hp.train.seed)
-    trainer = Trainer(rng, hp, learning_rate, profile, half_precision)
+    trainer = Trainer(rng, hp, profile, half_precision)
     init_epoch = 0
     example_batch = None
     for step in range(init_epoch, hp.train.total_steps):
