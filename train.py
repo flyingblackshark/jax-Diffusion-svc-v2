@@ -151,9 +151,7 @@ class Trainer:
 
         logger.info(f"Mesh: {self.mesh}")
 
-        self.data_iterator = get_dataset(hp,self.mesh)
 
-        logger.info(f"Data Iterator: {self.data_iterator}")
 
         def get_sharding_for_spec(pspec: PartitionSpec) -> NamedSharding:
             """
@@ -362,10 +360,11 @@ def main(
     hp = OmegaConf.load("configs/base.yaml")
     rng = random.PRNGKey(hp.train.seed)
     trainer = Trainer(rng, hp, profile, half_precision)
+    data_iterator = get_dataset(hp,trainer.mesh)
     init_epoch = 0
     example_batch = None
     for step in range(init_epoch, hp.train.total_steps):
-        example_batch = next(trainer.data_iterator)
+        example_batch = next(data_iterator)
         
         # Train step
         step_key = random.PRNGKey(step)
@@ -418,5 +417,4 @@ def main(
 
 if __name__ == "__main__":
     jax.config.update("jax_default_prng_impl", "unsafe_rbg")
-    main()
-    #fire.Fire(main)
+    fire.Fire(main)
