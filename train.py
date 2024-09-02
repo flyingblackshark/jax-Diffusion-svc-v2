@@ -224,13 +224,13 @@ class Trainer:
             x_sharding,
         )
         diff_step_out_sharding: Any = (
-            get_sharding_for_spec(PartitionSpec()),
+            get_sharding_for_spec(PartitionSpec('data')),
             diff_train_state_sharding,
         )
         naive_step_out_sharding: Any = (
-            get_sharding_for_spec(PartitionSpec()),
+            get_sharding_for_spec(PartitionSpec('data')),
             naive_train_state_sharding,
-            get_sharding_for_spec(PartitionSpec()),
+            get_sharding_for_spec(PartitionSpec('data')),
         )
         self.diff_train_step: Wrapped = jax.jit(
             functools.partial(rectified_flow_step, training=True),
