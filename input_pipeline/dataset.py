@@ -1,17 +1,15 @@
 import grain.python
 from input_pipeline import utils
-import grain
 from jax.sharding import Mesh
 import jax
 from input_pipeline import multihost_dataloading
-from transformers import FlaxAutoModel
 import glob
 def get_dataset(hp,mesh):
     data_files = glob.glob(hp.data_loader.dataset_path)
     dataset = grain.python.ArrayRecordDataSource(data_files)
     index_sampler = grain.python.IndexSampler(
       num_records=len(dataset),
-      #num_epochs=hp.data_loader.num_epochs,
+      num_epochs=hp.data_loader.num_epochs,
       shard_options=grain.python.ShardOptions(
           shard_index=jax.process_index(), shard_count=hp.data_loader.host_number, drop_remainder=False
       ),
