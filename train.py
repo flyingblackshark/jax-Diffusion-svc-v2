@@ -19,7 +19,6 @@ from jax import random
 from jax.experimental import mesh_utils
 from jax.sharding import Mesh, NamedSharding, PartitionSpec
 from jax.stages import Compiled, Wrapped
-from PIL import Image
 # from tensorboardX import SummaryWriter
 # from tqdm import tqdm
 from omegaconf import OmegaConf
@@ -136,10 +135,13 @@ class Trainer:
         logger.info(f"Device mesh: {device_mesh}")
 
         # Async checkpointer for saving checkpoints across processes
-        base_dir_abs = os.getcwd()
+        #base_dir_abs = os.getcwd()
         options = ocp.CheckpointManagerOptions(max_to_keep=3)
         self.checkpoint_manager = ocp.CheckpointManager(
-            f"{base_dir_abs}/checkpoints", options=options
+            hp.log.pth_dir,
+            #f"{base_dir_abs}/checkpoints", 
+            options=options,
+            item_names=('naive_state', 'diff_state')
         )
 
         # The axes are (data, model), so the mesh is (n_devices, 1) as the model is replicated across devices.
@@ -263,8 +265,11 @@ class Trainer:
             self.flops_for_step = 0
 
     def save_checkpoint(self, global_step: int):
-        if self.diff_train_state is not None:
-            self.checkpoint_manager.save(global_step, args=ocp.args.StandardSave(self.diff_train_state))  # type: ignore
+        if self.diff_train_state is not None and self.naive_train_state is not None:
+            self.checkpoint_manager.save(global_step, args=ocp.args.Composite(
+            diff_state=ocp.args.StandardSave(self.diff_train_state),
+            naive_state=ocp.args.StandardSave(self.naive_train_state)),
+            )  # type: ignore
 
 
 # def run_eval(
@@ -339,12 +344,7 @@ class Trainer:
 
 
 def main(
-    n_epochs: int = 100,
     learning_rate: float = 1e-4,
-    eval_save_steps: int = 250,
-    n_eval_batches: int = 1,
-    sample_every_n: int = 1,
-    dataset_name: str = "imagenet",
     profile: bool = False,
     half_precision: bool = False,
     **kwargs,
@@ -364,14 +364,6 @@ def main(
     hp = OmegaConf.load("configs/base.yaml")
     rng = random.PRNGKey(hp.train.seed)
     trainer = Trainer(rng, hp, learning_rate, profile, half_precision)
-
-    #summary_writer = SummaryWriter(flush_secs=1, max_queue=1)
-    #ensure_directory("samples", clear=True)
-
-    #iter_description_dict = {"loss": 0.0, "eval_loss": 0.0, "epoch": 0, "step": 0}
-    #n_samples = dataset_config.dataset_length or len(train_dataset)
-
-    n_evals = 0
     init_epoch = 0
     example_batch = None
     for step in range(init_epoch, hp.train.total_steps):
@@ -389,7 +381,6 @@ def main(
             profile_ctx = nullcontext()
 
         with profile_ctx:
-            #step_start_time = time.perf_counter()
             naive_train_loss, naive_updated_state,cond_mel = trainer.naive_train_step(
                 trainer.naive_train_state, 
                 example_batch['hubert_feature'], 
@@ -408,15 +399,9 @@ def main(
 
             trainer.diff_train_state = diff_updated_state
             
+            if step % hp.log.info_interval == 0 or profile:
+                logger.info(f"step: {step} naive_train_loss: {naive_train_loss} diff_train_loss: {diff_train_loss}")
 
-            logger.info(f"naive_train_loss : {naive_train_loss} diff_train_loss : {diff_train_loss}")
-            # step_duration = time.perf_counter() - step_start_time
-            # flops_device_sec = trainer.flops_for_step / (
-            #     step_duration * device_count
-            # )
-
-            #peak_flops = get_peak_flops()
-            #mfu = flops_device_sec / peak_flops
 
         #     summary_writer.add_scalar(
         #         "train_step_time",
@@ -426,20 +411,8 @@ def main(
 
         # summary_writer.add_scalar("train_loss", train_loss, global_step)
 
-        # if global_step % eval_save_steps == 0 or profile:
-        #     trainer.save_checkpoint(global_step)
-        #     run_eval(
-        #         eval_dataset,
-        #         n_eval_batches,
-        #         dataset_config,
-        #         trainer,
-        #         rng,
-        #         summary_writer,
-        #         iter_description_dict,
-        #         global_step,
-        #         n_evals % sample_every_n == 0,
-        #         epoch,
-        #     )
+        if step % hp.log.eval_interval == 0 or profile:
+            trainer.save_checkpoint(step)
 
         if profile:
             logger.info("\nExiting after profiling a single step.")

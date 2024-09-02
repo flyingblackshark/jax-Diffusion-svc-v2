@@ -9,3 +9,4 @@ local_train_dir
 vae_mds
 submit_*
 *.out.*
+.vscode/

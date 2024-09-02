@@ -2,7 +2,8 @@ import grain
 import numpy as np
 import grain.python
 import tensorflow as tf
-
+import csv
+import os
 
 class PadToMaxLength(grain.python.MapTransform):
   """Pads each input to the specified length"""
@@ -52,13 +53,15 @@ class SliceToLength(grain.python.RandomMapTransform):
 class ParseFeatures(grain.python.MapTransform):
   def __init__(self, hp):
     self.hp = hp
-  # def speaker2id(self,key):
-  #   import csv
-  #   reader = csv.reader(open(self.hp.data.speaker_files, 'r'))
-  #   for row in reader:
-  #     if row[0].lower() == key:
-  #       return int(row[1])
-  #   raise Exception("Speaker Not Found")
+  def speaker2id(self,key):
+    if os.path.exists(self.hp.data.speaker_files):
+      reader = csv.reader(open(self.hp.data.speaker_files, 'r'))
+      for row in reader:
+        if row[0].lower() == key:
+          return int(row[1])
+      raise Exception("Speaker Not Found")
+    else:
+      return 0
   def map(self, features):
     def _parse(example):
       parsed = tf.io.parse_example(example, {
@@ -85,6 +88,6 @@ class ParseFeatures(grain.python.MapTransform):
         "f0_length": f0_feature.shape[0],
         "mel_feature":mel_feature,
         "mel_length": mel_feature.shape[0],
-        #"speaker_id":self.speaker2id(example["speaker"])
+        "speaker_id":self.speaker2id(example["speaker"])
     }
   
