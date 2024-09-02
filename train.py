@@ -399,8 +399,8 @@ def main(
 
             trainer.diff_train_state = diff_updated_state
             
-            if step % hp.log.info_interval == 0 or profile:
-                logger.info(f"step: {step} naive_train_loss: {naive_train_loss} diff_train_loss: {diff_train_loss}")
+        if step % hp.log.info_interval == 0 or profile:
+            logger.info(f"step: {step} naive_train_loss: {naive_train_loss} diff_train_loss: {diff_train_loss}")
 
 
         #     summary_writer.add_scalar(
