@@ -1,7 +1,7 @@
 import os
 import sys
-
-from naive import Unit2MelNaive
+import flax
+import flax.serialization
 from sampling import rectified_flow_sample
 from train import Trainer
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -11,14 +11,11 @@ import jax
 import numpy as np
 
 import argparse
-import orbax.checkpoint as ocp
-from flax.training.train_state import TrainState
 from omegaconf import OmegaConf
 from scipy.io.wavfile import write
 
 import librosa
 from transformers import FlaxAutoModel
-import optax
 import audax.core
 import audax.core.functional
 import audax.core.stft
@@ -29,7 +26,7 @@ from jax_fcpe.utils import load_model
 import jax
 from jax.experimental.compilation_cache import compilation_cache as cc
 cc.set_cache_dir("./jax_cache")
-jax.config.update('jax_platform_name', 'cpu')
+#jax.config.update('jax_platform_name', 'cpu')
 
 def dynamic_range_compression_jax(x, C=1, clip_val=1e-5):
     return jnp.log(jnp.clip(x,min=clip_val) * C)
@@ -172,38 +169,53 @@ def main(args):
 
     output_mel = parallel_infer(pit,ppg,0).squeeze(0)
 
-    #out_audio = jnp.reshape(frags,[frags.shape[0]*frags.shape[1]*frags.shape[2]])
-    #out_audio = np.asarray(out_audio)
-    # wav_spec = get_spec(wav).squeeze(0)
-    # out_spec = get_spec(out_audio).squeeze(0)
     output_mel = np.asarray(output_mel)
     output_mel = output_mel.transpose(1,0)
-    #output_mel = librosa.amplitude_to_db(output_mel, ref=np.max,top_db=80.)
     mel = np.asarray(mel)
     mel = mel.transpose(1,0)
-    #mel = librosa.amplitude_to_db(mel, ref=np.max,top_db=80.)
-    fig, ax = plt.subplots(nrows=2, ncols=1,figsize=(12, 4))
+    # fig, ax = plt.subplots(nrows=2, ncols=1,figsize=(12, 4))
     
-    ax[0].imshow(output_mel, aspect="auto", origin="lower",
-                   interpolation='none')
-    ax[1].imshow(mel, aspect="auto", origin="lower",
-                interpolation='none')
-    plt.tight_layout()
-    plt.show()
+    # ax[0].imshow(output_mel, aspect="auto", origin="lower",
+    #                interpolation='none')
+    # ax[1].imshow(mel, aspect="auto", origin="lower",
+    #             interpolation='none')
+    # plt.tight_layout()
+    # plt.show()
     t_start = 0
     mel = mel.transpose(1,0)
     output_mel = output_mel.transpose(1,0)
     z = t_start * mel + (1 - t_start) * jax.random.normal(jax.random.PRNGKey(0),mel.shape)
+    z = z[:512]
+    output_mel = output_mel[:512]
+    pit = pit[:,:512]
+    z = jnp.expand_dims(z,0)
     z = rectified_flow_sample(trainer.diff_train_state,z,output_mel,jax.random.PRNGKey(0))
-
-    fig, ax = plt.subplots(nrows=2, ncols=1,figsize=(12, 4))
+    z = z.squeeze(0)
+    z = z.transpose(1,0)
+    output_mel = output_mel.transpose(1,0)
+    # fig, ax = plt.subplots(nrows=2, ncols=1,figsize=(12, 4))
     
-    ax[0].imshow(output_mel, aspect="auto", origin="lower",
-                   interpolation='none')
-    ax[1].imshow(z, aspect="auto", origin="lower",
-                interpolation='none')
-    plt.tight_layout()
-    plt.show()
+    # ax[0].imshow(output_mel, aspect="auto", origin="lower",
+    #                interpolation='none')
+    # ax[1].imshow(z, aspect="auto", origin="lower",
+    #             interpolation='none')
+    # plt.tight_layout()
+    # plt.show()
+
+    config = OmegaConf.load("./vocoder/base.yaml")
+    from vocoder.models import Generator
+    model = Generator(config)
+    params = model.init(jax.random.PRNGKey(0),jnp.ones((1,128,100)),jnp.ones((1,100)))["params"]
+    binary_file = open("./vocoder/vocoder.msgpack", "rb")
+    bytes_data = binary_file.read()
+    binary_file.close()
+    params = flax.serialization.from_bytes(params,bytes_data)
+    rng = {'params': jax.random.PRNGKey(0), 'dropout': jax.random.PRNGKey(0),'rnorms':jax.random.PRNGKey(0)}
+    #z = z.transpose(1,0)
+    mel = jnp.expand_dims(z,0)
+    wav = model.apply({"params":params},mel,pit,rngs=rng)
+    wav = wav.squeeze(0).squeeze(0)
+    write("test_out.wav", 44100, np.asarray(wav))
     #write("svc_out.wav", 32000, out_audio)
 
 
