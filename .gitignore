@@ -12,3 +12,5 @@ submit_*
 .vscode/
 hubert/pytorch_model.bin
 configs/
+test.wav
+jax_cache/

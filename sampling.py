@@ -138,15 +138,15 @@ def ddpm_step(
 
 @jax.jit
 def sample_loop(
-    z, t, cond, train_state: TrainState, cfg, null_cond, dt, rng_key
+    z, t, cond, train_state: TrainState, cfg, dt, rng_key
 ):
     v_cond = train_state.apply_fn({"params": train_state.params}, z, t, cond, rng_key, False)
     # CFG
-    if null_cond is not None:
-        v_uncond = train_state.apply_fn(
-            {"params": train_state.params}, z, t, null_cond, rng_key, False
-        )
-        v_cond = v_uncond + cfg * (v_cond - v_uncond)
+
+    # v_uncond = train_state.apply_fn(
+    #     {"params": train_state.params}, z, t, rng_key, False
+    # )
+    # v_cond = v_uncond + cfg * (v_cond - v_uncond)
 
     z = z - dt * v_cond
     return z
@@ -158,33 +158,32 @@ def rectified_flow_sample(
     z: Array,
     cond: Array,
     rng_key: Array,
-    null_cond=None,
     sample_steps: int = 30,
     cfg: float = 2.0,
-) -> List[List[Image.Image]]:
+):
     b = z.shape[0]
     dt = 1.0 / sample_steps
     # reshape to (b, 1, 1, 1, 1) for broadcasting
     dt = jnp.array([dt] * b).reshape([b] + [1] * (len(z.shape) - 1))
-    outs = [z]
+    #outs = [z]
 
     for i in tqdm(range(sample_steps, 0, -1), desc="Sampling", leave=False):
         t = i / sample_steps
         t = jnp.array([t] * b)
-        outs.append(z)
+        #outs.append(z)
         z = sample_loop(
-            z, t, cond, train_state, cfg, null_cond, dt, rng_key
+            z, t, cond, train_state, cfg,  dt, rng_key
         )
 
-    images = jnp.stack(outs, axis=0)
-    images = images.transpose((0, 1, 3, 4, 2))
-    images = denormalize_images(images)
-    img_mode = "L" if images.shape[-1] == 1 else "RGB"
-    if img_mode == "L":
-        images = images[..., 0]
-    images_cpu = images.__array__()
-    batches = []
-    for step in range(sample_steps):
-        images_batch = [Image.fromarray(img, mode=img_mode) for img in images_cpu[step]]
-        batches.append(images_batch)
-    return batches
+    # images = jnp.stack(outs, axis=0)
+    # images = images.transpose((0, 1, 3, 4, 2))
+    # images = denormalize_images(images)
+    # img_mode = "L" if images.shape[-1] == 1 else "RGB"
+    # if img_mode == "L":
+    #     images = images[..., 0]
+    # images_cpu = images.__array__()
+    # batches = []
+    # for step in range(sample_steps):
+    #     images_batch = [Image.fromarray(img, mode=img_mode) for img in images_cpu[step]]
+    #     batches.append(images_batch)
+    return z
