@@ -9,7 +9,7 @@ def get_dataset(hp,mesh):
     dataset = grain.python.ArrayRecordDataSource(data_files)
     index_sampler = grain.python.IndexSampler(
       num_records=len(dataset),
-      num_epochs=hp.data_loader.num_epochs,
+      num_epochs=hp.data_loader.num_epochs if hp.data_loader.num_epochs>0 else None,
       shard_options=grain.python.ShardOptions(
           shard_index=jax.process_index(), shard_count=hp.data_loader.host_number, drop_remainder=False
       ),
