@@ -1,6 +1,7 @@
 from functools import partial
 import jax.numpy as jnp
 import flax.linen as nn
+import jax
 class ConformerNaiveEncoder(nn.Module):
     """
     Conformer Naive Encoder
@@ -25,6 +26,7 @@ class ConformerNaiveEncoder(nn.Module):
     conv_only: bool = True
     conv_dropout: float = 0.
     atten_dropout: float = 0.1
+    precision : jax.lax.Precision = jax.lax.Precision.HIGHEST
 
     @nn.compact
     def __call__(self, x, mask=None,train=True) -> jnp.ndarray:
@@ -47,6 +49,7 @@ class ConformerNaiveEncoder(nn.Module):
                 conv_only=self.conv_only,
                 conv_dropout=self.conv_dropout,
                 atten_dropout=self.atten_dropout,
+                precision=self.precision,
                 train=train)(x)
         # for (i, layer) in enumerate(self.encoder_layers):
         #     x = layer(x, mask)
@@ -75,6 +78,7 @@ class CFNEncoderLayer(nn.Module):
     conv_only: bool = True
     conv_dropout: float = 0.
     atten_dropout: float = 0.1
+    precision : jax.lax.Precision = jax.lax.Precision.HIGHEST
     train:bool = True
 
     def setup(self):
@@ -84,6 +88,7 @@ class CFNEncoderLayer(nn.Module):
             kernel_size=self.kernel_size,
             use_norm=self.use_norm,
             dropout=self.conv_dropout,
+            precision=self.precision,
             train=self.train
         )
 
@@ -107,16 +112,17 @@ class ConformerConvModule(nn.Module):
     kernel_size:int=31
     dropout:float=0.
     use_norm:bool=False
+    precision : jax.lax.Precision = jax.lax.Precision.HIGHEST
     train:bool = True
     @nn.compact
     def __call__(self, x):
         inner_dim = self.dim * self.expansion_factor
         net = nn.Sequential([
-            nn.Conv(inner_dim * 2, 1),
+            nn.Conv(inner_dim * 2, 1,precision=self.precision),
             partial(nn.glu,axis=2),
-            nn.Conv(inner_dim, self.kernel_size, feature_group_count=inner_dim),
+            nn.Conv(inner_dim, self.kernel_size, feature_group_count=inner_dim,precision=self.precision),
             nn.PReLU(),
-            nn.Conv(self.dim, 1),
+            nn.Conv(self.dim, 1,precision=self.precision),
             nn.Dropout(self.dropout,deterministic=not self.train)]
         )
         return net(x)

@@ -1,24 +1,8 @@
-from jax import Array
+
 import jax.numpy as jnp
 import flax.linen as nn
-
+import jax
 from model_conformer_naive import ConformerNaiveEncoder
-import numpy as np
-
-f0_bin = 256
-f0_max = 1100.0
-f0_min = 50.0
-f0_mel_min = 1127 * np.log(1 + f0_min / 700)
-f0_mel_max = 1127 * np.log(1 + f0_max / 700)
-
-
-def f0_to_coarse(f0:Array) -> Array:
-    f0_mel = 1127 * jnp.log(1 + f0 / 700)
-    f0_mel = jnp.where(f0_mel>0,(f0_mel - f0_mel_min) * (f0_bin - 2) / (f0_mel_max - f0_mel_min) + 1,f0_mel)
-    f0_mel = jnp.where(f0_mel <= 1 , 1 , f0_mel)
-    f0_mel = jnp.where(f0_mel > (f0_bin - 1),f0_bin - 1,f0_mel)
-    f0_coarse = jnp.rint(f0_mel).astype(jnp.int32)
-    return f0_coarse
 
 class Unit2MelNaive(nn.Module):
     #input_channel:int
@@ -37,6 +21,7 @@ class Unit2MelNaive(nn.Module):
     conv_dropout:float = 0.
     atten_dropout:float = 0.1
     use_weight_norm:bool = False
+    precision : jax.lax.Precision = jax.lax.Precision.HIGHEST
     def setup(self):
         self.f0_embed = nn.Dense(self.n_chans)
         #self.volume_embed = nn.Dense(self.n_chans)
@@ -53,10 +38,10 @@ class Unit2MelNaive(nn.Module):
 
         # conv in stack
         self.ppg_stack = nn.Sequential([
-            nn.Conv(self.n_chans, [3]),
+            nn.Conv(self.n_chans, [3],precision=self.precision),
             nn.GroupNorm(num_groups=4),
             nn.leaky_relu,
-            nn.Conv(self.n_chans, [3])])
+            nn.Conv(self.n_chans, [3],precision=self.precision)])
           
         # transformer
         self.decoder = ConformerNaiveEncoder(
@@ -69,13 +54,14 @@ class Unit2MelNaive(nn.Module):
             conv_only=self.conv_only,
             conv_dropout=self.conv_dropout,
             atten_dropout=self.atten_dropout,
+            precision=self.precision
             # conv_model_type=self.conv_model_type,
             # conv_model_activation=self.conv_model_activation
         )
 
-        self.norm = nn.LayerNorm()
+        self.norm = nn.LayerNorm(epsilon=1e-05)
         # out
-        self.dense_out = nn.Dense(self.out_dims)
+        self.dense_out = nn.Dense(self.out_dims,precision=self.precision)
 
 
     def __call__(self, ppg ,f0, spk_id=None, spk_mix_dict=None, aug_shift=None,
