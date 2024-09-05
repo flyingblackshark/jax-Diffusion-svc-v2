@@ -17,3 +17,5 @@ jax_cache/
 configs/base.yaml
 test_out.wav
 #vocoder/vocoder.msgpack
+dataset_raw/
+dataset/

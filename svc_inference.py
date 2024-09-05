@@ -173,14 +173,14 @@ def main(args):
     output_mel = output_mel.transpose(1,0)
     mel = np.asarray(mel)
     mel = mel.transpose(1,0)
-    # fig, ax = plt.subplots(nrows=2, ncols=1,figsize=(12, 4))
+    fig, ax = plt.subplots(nrows=2, ncols=1,figsize=(12, 4))
     
-    # ax[0].imshow(output_mel, aspect="auto", origin="lower",
-    #                interpolation='none')
-    # ax[1].imshow(mel, aspect="auto", origin="lower",
-    #             interpolation='none')
-    # plt.tight_layout()
-    # plt.show()
+    ax[0].imshow(output_mel, aspect="auto", origin="lower",
+                   interpolation='none')
+    ax[1].imshow(mel, aspect="auto", origin="lower",
+                interpolation='none')
+    plt.tight_layout()
+    plt.show()
     t_start = 0
     mel = mel.transpose(1,0)
     output_mel = output_mel.transpose(1,0)

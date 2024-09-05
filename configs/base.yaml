@@ -4,7 +4,7 @@ train:
   learning_rate: 1e-5
   betas: [0.9, 0.99]
   lr_decay: 0.999875
-  total_steps: 100000 # for lr exponential decay
+  total_steps: 1000000 # for lr exponential decay
   max_to_keep : 5
 #############################
 data: 
@@ -42,6 +42,7 @@ log:
   info_interval: 100
   eval_interval: 1000
   save_interval: 1000
+  #pth_dir: 'gs://fbs-us2/diff_svc_chkpt' # gcs gs://
   pth_dir: '/home/fbs/jax-Diffusion-svc-v2/checkpoints' # gcs gs://
   log_dir: 'logs'
 #############################
