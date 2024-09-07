@@ -21,7 +21,7 @@ def process_file(file, wavPath, spks, outPath, sr):
 
 
 def process_files_with_thread_pool(wavPath, spks, outPath, sr, thread_num=None):
-    files = [f for f in os.listdir(f"./{wavPath}/{spks}") if f.endswith(".wav")]
+    files = [f for f in os.listdir(f"{wavPath}/{spks}") if f.endswith(".wav")]
 
     with ThreadPoolExecutor(max_workers=thread_num) as executor:
         futures = {executor.submit(process_file, file, wavPath, spks, outPath, sr): file for file in files}
@@ -38,17 +38,17 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--thread_count", help="thread count to process, set 0 to use all cpu cores", dest="thread_count", type=int, default=1)
 
     args = parser.parse_args()
-    print(args.wav)
-    print(args.out)
-    print(args.sr)
+    # print(args.wav)
+    # print(args.out)
+    # print(args.sr)
 
     os.makedirs(args.out, exist_ok=True)
     wavPath = args.wav
     outPath = args.out
 
     for spks in os.listdir(wavPath):
-        if os.path.isdir(f"./{wavPath}/{spks}"):
-            os.makedirs(f"./{outPath}/{spks}", exist_ok=True)
+        if os.path.isdir(f"{wavPath}/{spks}"):
+            os.makedirs(f"{outPath}/{spks}", exist_ok=True)
             if args.thread_count == 0:
                 process_num = os.cpu_count() // 2 + 1
             else:

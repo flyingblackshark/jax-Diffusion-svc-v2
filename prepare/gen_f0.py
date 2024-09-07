@@ -71,7 +71,7 @@ def batch_process_f0(files,batch_size,outPath,wavPath,spks,mesh):
             batch_f0 = jitted_get_f0(batch_data)
             for j in range(batch_f0.shape[0]):
                 file = file_name_arr[j]
-                jnp.save(f"./{outPath}/{spks}/{file}.pit",batch_f0[j,:batch_length[j]])
+                jnp.save(f"{outPath}/{spks}/{file}.pit",batch_f0[j,:batch_length[j]])
             batch_data = []
             batch_length = []
             file_name_arr = []
@@ -83,16 +83,16 @@ def batch_process_f0(files,batch_size,outPath,wavPath,spks,mesh):
         batch_f0 = batch_f0[:b_length]
         for j in range(batch_f0.shape[0]):
             file = file_name_arr[j]
-            jnp.save(f"./{outPath}/{spks}/{file}.pit",batch_f0[j,:batch_length[j]])
+            jnp.save(f"{outPath}/{spks}/{file}.pit",batch_f0[j,:batch_length[j]])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-w", "--wav", help="wav", dest="wav", required=True)
     parser.add_argument("-o", "--out", help="out", dest="out", required=True)
-    parser.add_argument("-bs", "--batch_size",type=int, default=1)
+    parser.add_argument("-bs", "--batch_size",type=int, default=4)
 
     args = parser.parse_args()
-    device_mesh = mesh_utils.create_device_mesh((1,))
+    device_mesh = mesh_utils.create_device_mesh((jax.local_device_count(),))
     mesh = Mesh(devices=device_mesh, axis_names=('data'))
     os.makedirs(args.out, exist_ok=True)
     wavPath = args.wav
@@ -100,8 +100,8 @@ if __name__ == "__main__":
     batch_size = args.batch_size
     spk_files = {}
     for spks in os.listdir(wavPath):
-        if os.path.isdir(f"./{wavPath}/{spks}"):
-            os.makedirs(f"./{outPath}/{spks}", exist_ok=True)
-            files = [f for f in os.listdir(f"./{wavPath}/{spks}") if f.endswith(".wav")]
+        if os.path.isdir(f"{wavPath}/{spks}"):
+            os.makedirs(f"{outPath}/{spks}", exist_ok=True)
+            files = [f for f in os.listdir(f"{wavPath}/{spks}") if f.endswith(".wav")]
             batch_process_f0(files,batch_size,outPath,wavPath,spks,mesh)
     

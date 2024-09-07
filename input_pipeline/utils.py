@@ -48,6 +48,7 @@ class SliceToLength(grain.python.RandomMapTransform):
     data["hubert_feature"] = data["hubert_feature"][idx:idx+self.segment_size]
     data["f0_feature"] = data["f0_feature"][idx:idx+self.segment_size]
     data["mel_feature"] = data["mel_feature"][idx:idx+self.segment_size]
+    data["vol_feature"] = data["vol_feature"][idx:idx+self.segment_size]
     return data
 
 class ParseFeatures(grain.python.MapTransform):
@@ -68,7 +69,9 @@ class ParseFeatures(grain.python.MapTransform):
         #"audio": tf.io.FixedLenFeature([], dtype=tf.string),
         "f0_feature": tf.io.FixedLenFeature([], dtype=tf.string),
         "hubert_feature": tf.io.FixedLenFeature([], dtype=tf.string),
+        #"wav2vec_feature": tf.io.FixedLenFeature([], dtype=tf.string),
         "mel_feature": tf.io.FixedLenFeature([], dtype=tf.string),
+        "vol_feature": tf.io.FixedLenFeature([], dtype=tf.string),
         "speaker": tf.io.FixedLenFeature([], dtype=tf.string)
         })
       return parsed
@@ -77,6 +80,7 @@ class ParseFeatures(grain.python.MapTransform):
     hubert_feature = tf.io.parse_tensor(example["hubert_feature"],tf.float32)
     f0_feature = tf.io.parse_tensor(example["f0_feature"],tf.float32)
     mel_feature = tf.io.parse_tensor(example["mel_feature"],tf.float32)
+    vol_feature = tf.io.parse_tensor(example["vol_feature"],tf.float32)
     #hubert_feature = tf.repeat(hubert_feature,repeats=2,axis=0) 
 
     return {
@@ -88,6 +92,7 @@ class ParseFeatures(grain.python.MapTransform):
         "f0_length": f0_feature.shape[0],
         "mel_feature":mel_feature,
         "mel_length": mel_feature.shape[0],
+        "vol_feature":vol_feature,
         "speaker_id":self.speaker2id(example["speaker"])
     }
   

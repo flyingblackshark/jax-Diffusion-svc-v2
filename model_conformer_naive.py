@@ -102,7 +102,7 @@ class CFNEncoderLayer(nn.Module):
         return:
             torch.Tensor: Output tensor (#batch, length, dim_model)
         """
-
+        x = self.norm(x)
         x = x + (self.conformer(x))
 
         return x,None 

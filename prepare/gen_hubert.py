@@ -7,16 +7,12 @@ from jax.sharding import Mesh, PartitionSpec, NamedSharding
 from jax.experimental import mesh_utils
 import jax
 from jax.experimental.compilation_cache import compilation_cache as cc
-cc.set_cache_dir("./jax_cache")
+cc.set_cache_dir("jax_cache")
 MAX_LENGTH = 16000 * 30
-import jax.numpy as jnp
-import jax
 from transformers import FlaxAutoModel
-from jax.experimental.compilation_cache import compilation_cache as cc
-cc.set_cache_dir("./jax_cache")
 
 def batch_process_f0(files,batch_size,outPath,wavPath,spks,mesh):
-    hubert_model = FlaxAutoModel.from_pretrained("./hubert",from_pt=True, trust_remote_code=True)
+    hubert_model = FlaxAutoModel.from_pretrained("hubert",from_pt=True, trust_remote_code=True)
     x_sharding = NamedSharding(mesh,PartitionSpec('data'))
     jitted_hubert_model = jax.jit(hubert_model, in_shardings=(x_sharding),out_shardings=x_sharding)
     i = 0
@@ -38,7 +34,7 @@ def batch_process_f0(files,batch_size,outPath,wavPath,spks,mesh):
             batch_hubert = jitted_hubert_model(batch_data).last_hidden_state
             for j in range(batch_hubert.shape[0]):
                 file = file_name_arr[j]
-                jnp.save(f"./{outPath}/{spks}/{file}.bert",batch_hubert[j,:batch_length[j]])
+                jnp.save(f"{outPath}/{spks}/{file}.bert",batch_hubert[j,:batch_length[j]])
             batch_data = []
             batch_length = []
             file_name_arr = []
@@ -51,16 +47,16 @@ def batch_process_f0(files,batch_size,outPath,wavPath,spks,mesh):
         batch_hubert = batch_hubert[:b_length]
         for j in range(batch_hubert.shape[0]):
             file = file_name_arr[j]
-            jnp.save(f"./{outPath}/{spks}/{file}.bert",batch_hubert[j,:batch_length[j]])
+            jnp.save(f"{outPath}/{spks}/{file}.bert",batch_hubert[j,:batch_length[j]])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-w", "--wav", help="wav", dest="wav", required=True)
     parser.add_argument("-o", "--out", help="out", dest="out", required=True)
-    parser.add_argument("-bs", "--batch_size",type=int, default=1)
+    parser.add_argument("-bs", "--batch_size",type=int, default=4)
 
     args = parser.parse_args()
-    device_mesh = mesh_utils.create_device_mesh((1,))
+    device_mesh = mesh_utils.create_device_mesh((jax.local_device_count(),))
     mesh = Mesh(devices=device_mesh, axis_names=('data'))
     os.makedirs(args.out, exist_ok=True)
     wavPath = args.wav
@@ -68,8 +64,8 @@ if __name__ == "__main__":
     batch_size = args.batch_size
     spk_files = {}
     for spks in os.listdir(wavPath):
-        if os.path.isdir(f"./{wavPath}/{spks}"):
-            os.makedirs(f"./{outPath}/{spks}", exist_ok=True)
-            files = [f for f in os.listdir(f"./{wavPath}/{spks}") if f.endswith(".wav")]
+        if os.path.isdir(f"{wavPath}/{spks}"):
+            os.makedirs(f"{outPath}/{spks}", exist_ok=True)
+            files = [f for f in os.listdir(f"{wavPath}/{spks}") if f.endswith(".wav")]
             batch_process_f0(files,batch_size,outPath,wavPath,spks,mesh)
     
