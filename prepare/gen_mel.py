@@ -14,42 +14,9 @@ import audax
 from librosa.filters import mel as librosa_mel_fn
 import jax
 from jax.experimental.compilation_cache import compilation_cache as cc
+from utils import get_mel
 cc.set_cache_dir("jax_cache")
 MAX_LENGTH = 30 * 44100
-sampling_rate = 44100
-n_mels     = 128 #self.n_mels
-n_fft      = 2048 #self.n_fft
-win_size   = 2048 #self.win_size
-hop_length = 512 #self.hop_length
-fmin       = 40 #self.fmin
-fmax       = 16000 #self.fmax
-clip_val   = 1e-5 #self.clip_val
-mel_basis = librosa_mel_fn(sr=sampling_rate, n_fft=n_fft, n_mels=n_mels, fmin=fmin, fmax=fmax)
-mel_basis = jnp.asarray(mel_basis,dtype=jnp.float32)
-def dynamic_range_compression_jax(x, C=1, clip_val=1e-5):
-    return jnp.log(jnp.clip(x,min=clip_val) * C)
-def get_mel(y, keyshift=0, speed=1, center=False):
-
-    factor = 2 ** (keyshift / 12)       
-    n_fft_new = int(np.round(n_fft * factor))
-    win_size_new = int(np.round(win_size * factor))
-    hop_length_new = int(np.round(hop_length * speed))
-    hann_window= jnp.hanning(win_size_new)
-    pad_left = (win_size_new - hop_length_new) //2
-    pad_right = max((win_size_new - hop_length_new + 1) //2, win_size_new - y.shape[-1] - pad_left)
-    y = jnp.pad(y, ((0,0),(pad_left, pad_right)))
-    spec = audax.core.stft.stft(y,n_fft_new,hop_length_new,win_size_new,hann_window,onesided=True,center=False)
-    spec = jnp.sqrt(spec.real**2 + spec.imag**2 + (1e-9))
-    if keyshift != 0:
-        size = n_fft // 2 + 1
-        resize = spec.size(1)
-        if resize < size:
-            spec = jnp.pad(spec, ((0, 0),(0, size-resize)))
-        spec = spec[:, :size, :] * win_size / win_size_new   
-    spec = spec.transpose(0,2,1)
-    spec = jnp.matmul(mel_basis, spec)
-    spec = dynamic_range_compression_jax(spec, clip_val=clip_val)
-    return spec.transpose(0,2,1)
 
 def batch_process_spec(files,batch_size,outPath,wavPath,spks,mesh):
     x_sharding = NamedSharding(mesh,PartitionSpec('data'))

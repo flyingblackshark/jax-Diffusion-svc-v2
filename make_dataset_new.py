@@ -16,7 +16,6 @@ def process_file(dsPath,spks,listPath,outPath):
             #spec = jnp.load(f"{dsPath}/spec/{spks}/{file}.spec.npy")
             f0 = jnp.load(f"{dsPath}/pitch/{spks}/{file}.pit.npy")
             vol = jnp.load(f"{dsPath}/vol/{spks}/{file}.vol.npy")
-            vol = vol[:-1]
             hubert = jnp.load(f"{dsPath}/hubert/{spks}/{file}.bert.npy")
             #vec = jnp.load(f"{dsPath}/vec/{spks}/{file}.vec.npy")
             mel = jnp.load(f"{dsPath}/mel/{spks}/{file}.mel.npy")

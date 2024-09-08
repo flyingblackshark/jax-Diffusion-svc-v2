@@ -13,16 +13,17 @@ class ResBlock1(nn.Module):
     channels:int
     kernel_size:int=3
     dilation:tuple=(1, 3, 5)
+    precision : jax.lax.Precision = jax.lax.Precision.HIGHEST
     def setup(self):
        
         self.convs1 =[
-            nn.WeightNorm(nn.Conv(self.channels,[ self.kernel_size], 1, kernel_dilation=self.dilation[0])),
-            nn.WeightNorm(nn.Conv( self.channels, [self.kernel_size], 1, kernel_dilation=self.dilation[1])),
-            nn.WeightNorm(nn.Conv( self.channels, [self.kernel_size], 1, kernel_dilation=self.dilation[2]))]
+            nn.WeightNorm(nn.Conv(self.channels,[ self.kernel_size], 1, kernel_dilation=self.dilation[0],precision=self.precision)),
+            nn.WeightNorm(nn.Conv( self.channels, [self.kernel_size], 1, kernel_dilation=self.dilation[1],precision=self.precision)),
+            nn.WeightNorm(nn.Conv( self.channels, [self.kernel_size], 1, kernel_dilation=self.dilation[2],precision=self.precision))]
         self.convs2 = [
-            nn.WeightNorm(nn.Conv( self.channels, [self.kernel_size], 1, kernel_dilation=1)),
-            nn.WeightNorm(nn.Conv( self.channels, [self.kernel_size], 1, kernel_dilation=1)),
-            nn.WeightNorm(nn.Conv(self.channels, [self.kernel_size], 1, kernel_dilation=1))
+            nn.WeightNorm(nn.Conv( self.channels, [self.kernel_size], 1, kernel_dilation=1,precision=self.precision)),
+            nn.WeightNorm(nn.Conv( self.channels, [self.kernel_size], 1, kernel_dilation=1,precision=self.precision)),
+            nn.WeightNorm(nn.Conv(self.channels, [self.kernel_size], 1, kernel_dilation=1,precision=self.precision))
         ]
         self.num_layers = len(self.convs1) + len(self.convs2)
         
@@ -95,10 +96,11 @@ class SourceModuleHnNSF(nn.Module):
 
 class Generator(nn.Module):
     config : Any
+    precision : jax.lax.Precision = jax.lax.Precision.HIGHEST
     def setup(self):
         self.num_kernels = len(self.config.resblock_kernel_sizes)
         self.num_upsamples = len(self.config.upsample_rates)
-        self.conv_pre = nn.WeightNorm(nn.Conv(features=self.config.upsample_initial_channel, kernel_size=[7], strides=[1]))
+        self.conv_pre = nn.WeightNorm(nn.Conv(features=self.config.upsample_initial_channel, kernel_size=[7], strides=[1],precision=self.precision))
         self.scale_factor = np.prod(self.config.upsample_rates)
         self.m_source = SourceModuleHnNSF(sampling_rate=self.config.sampling_rate,harmonic_num=8)
         noise_convs = []
@@ -109,7 +111,7 @@ class Generator(nn.Module):
                         self.config.upsample_initial_channel // (2 ** (i + 1)),
                         (k,),
                         (u,),
-                        transpose_kernel = True))
+                        transpose_kernel = True,precision=self.precision))
                 )
             if i + 1 < len(self.config.upsample_rates):
                 stride_f0 = int(np.prod(self.config.upsample_rates[i + 1:]))
@@ -117,23 +119,23 @@ class Generator(nn.Module):
                     nn.Conv(
                         features=self.config.upsample_initial_channel // (2 ** (i + 1)),
                         kernel_size=[stride_f0 * 2],
-                        strides=[stride_f0]
+                        strides=[stride_f0],precision=self.precision
                     )
                 )
             else:
                 noise_convs.append(
                     nn.Conv(features=self.config.upsample_initial_channel //
-                           (2 ** (i + 1)), kernel_size=[1])
+                           (2 ** (i + 1)), kernel_size=[1],precision=self.precision)
                 )
 
         resblocks = []
         for i in range(len(ups)):
             ch = self.config.upsample_initial_channel // (2 ** (i + 1))
             for k, d in zip(self.config.resblock_kernel_sizes, self.config.resblock_dilation_sizes):
-                resblocks.append(ResBlock1(ch, k, d))
+                resblocks.append(ResBlock1(ch, k, d,precision=self.precision))
 
-        self.conv_post =  nn.WeightNorm(nn.Conv(features=1, kernel_size=[7], strides=1 , use_bias=False))
-        self.cond = nn.Conv(self.config.upsample_initial_channel, 1)
+        self.conv_post =  nn.WeightNorm(nn.Conv(features=1, kernel_size=[7], strides=1 , use_bias=False,precision=self.precision))
+        self.cond = nn.Conv(self.config.upsample_initial_channel, 1,precision=self.precision)
         self.ups = ups
         self.noise_convs = noise_convs
         self.resblocks = resblocks

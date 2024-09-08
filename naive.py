@@ -24,7 +24,7 @@ class Unit2MelNaive(nn.Module):
     precision : jax.lax.Precision = jax.lax.Precision.HIGHEST
     def setup(self):
         self.f0_embed = nn.Dense(self.n_chans)
-        #self.volume_embed = nn.Dense(self.n_chans)
+        self.volume_embed = nn.Dense(self.n_chans)
         if self.use_pitch_aug:
             self.aug_shift_embed = nn.Dense(self.n_chans, use_bias=False)
         else:
@@ -59,12 +59,12 @@ class Unit2MelNaive(nn.Module):
             # conv_model_activation=self.conv_model_activation
         )
 
-        self.norm = nn.LayerNorm(epsilon=1e-05)
+        self.norm = nn.LayerNorm()
         # out
-        self.dense_out = nn.Dense(self.out_dims,precision=self.precision)
+        self.dense_out = nn.WeightNorm(nn.Dense(self.out_dims,precision=self.precision))
 
 
-    def __call__(self, ppg ,f0, spk_id=None, spk_mix_dict=None, aug_shift=None,
+    def __call__(self, ppg, f0, vol, spk_id=None, spk_mix_dict=None, aug_shift=None,
                 gt_spec=None, train=True):
 
         '''
@@ -73,11 +73,9 @@ class Unit2MelNaive(nn.Module):
         return:
             dict of B x n_frames x feat
         '''
-        x = self.ppg_stack(ppg).transpose(0,2,1)
-        #v = self.vec_stack(vec).transpose(0,2,1)
         f0 = jnp.expand_dims(f0,-1)
-        x = x + self.f0_embed(jnp.log(1+ f0 / 700)).transpose(0,2,1) #+ self.volume_embed(volume).transpose(0,2,1)
-        x = x.transpose(0,2,1)
+        vol = jnp.expand_dims(vol,-1)
+        x = self.ppg_stack(ppg) + self.f0_embed(jnp.log(1+ f0 / 700)) + self.volume_embed(vol)
         # if self.use_speaker_encoder:
         #     if spk_mix_dict is not None:
         #         assert spk_emb_dict is not None
