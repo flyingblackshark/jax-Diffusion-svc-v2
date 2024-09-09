@@ -52,15 +52,15 @@ class Trainer:
     ) -> None:
         self.init_step = 0
         self.optimizer = optax.chain(
-            optax.adam(learning_rate=hp.train.learning_rate),
+            optax.adamw(learning_rate=hp.train.learning_rate),
         )
         init_key, self.train_key = random.split(rng, 2)
 
-        dtype = jnp.float16 if half_precision else jnp.float32
+        #dtype = jnp.float16 if half_precision else jnp.float32
 
         self.diff_model = NaiveV2Diff(
             mel_channels=128,
-            dim=512,
+            dim=hp.model_diff.dim,
             use_mlp=True,
             mlp_factor=4,
             condition_dim=256,
@@ -69,8 +69,8 @@ class Trainer:
             kernel_size=31,
             conv_only=True,
             use_norm=False,
-            conv_dropout=0.0,
-            atten_dropout=0.1,
+            conv_dropout=hp.model_diff.conv_dropout,
+            atten_dropout=hp.model_diff.atten_dropout,
         )
         self.naive_model = Unit2MelNaive(
                     n_spk=hp.model_naive.n_spk,
@@ -87,7 +87,8 @@ class Trainer:
                     conv_only=hp.model_naive.conv_only,
                     conv_dropout=hp.model_naive.conv_dropout,
                     atten_dropout=hp.model_naive.atten_dropout,
-                    use_weight_norm=hp.model_naive.use_weight_norm)
+                    use_weight_norm=hp.model_naive.use_weight_norm,
+                    precision=jax.lax.Precision.DEFAULT)
         
         n_devices = len(jax.devices())
 
@@ -97,14 +98,15 @@ class Trainer:
             jnp.ones((n_devices, 400,128)),
             jnp.ones((n_devices), dtype=jnp.int32),
         )
-        #ppg f0
+        #ppg f0 vol
         naive_input_values = (
         jnp.ones((n_devices,400,768)),
+        jnp.ones((n_devices,400)),
         jnp.ones((n_devices,400))
         )
         def create_diff_train_state(x, y, t, model, optimizer):
             variables = model.init(
-                init_key,
+                {"params": init_key, "dropout": init_key},
                 spec=x,
                 diffusion_step=t,
                 cond=y,
@@ -112,19 +114,24 @@ class Trainer:
                 train=True,
             )
             train_state = TrainState.create(
-                apply_fn=self.diff_model.apply, params=variables["params"], tx=optimizer
+                apply_fn=self.diff_model.apply,
+                params=variables["params"],
+                tx=optimizer
             )
             return train_state
-        def create_naive_train_state(ppg, f0, model, optimizer):
+        def create_naive_train_state(ppg, f0,vol, model, optimizer):
             variables = model.init(
-                init_key,
+                {"params": init_key, "dropout": init_key},
                 ppg=ppg,
                 f0=f0,
+                vol=vol,
                 #rng=init_key,
                 train=True,
             )
             train_state = TrainState.create(
-                apply_fn=self.naive_model.apply, params=variables["params"], tx=optimizer
+                apply_fn=self.naive_model.apply, 
+                params=variables["params"], 
+                tx=optimizer 
             )
             return train_state
         logger.info(f"Available devices: {jax.devices()}")
@@ -182,7 +189,7 @@ class Trainer:
         diff_train_state_sharding = nn.get_sharding(diff_train_state_sharding_shape, self.mesh)
         naive_train_state_sharding = nn.get_sharding(naive_train_state_sharding_shape, self.mesh)
         diff_input_sharding: Any = (x_sharding, x_sharding, x_sharding)
-        naive_input_sharding: Any = (x_sharding, x_sharding)
+        naive_input_sharding: Any = (x_sharding, x_sharding, x_sharding)
 
         logger.info(f"Initializing model...")
         # Shard the train_state so so that it's replicated across devices
@@ -194,7 +201,7 @@ class Trainer:
         )
         jit_create_naive_train_state_fn = jax.jit(
             create_naive_train_state,
-            static_argnums=(2,3),
+            static_argnums=(3,4),
             in_shardings=naive_input_sharding,  # type: ignore
             out_shardings=naive_train_state_sharding,
         )
@@ -223,6 +230,7 @@ class Trainer:
             x_sharding,
             x_sharding,
             x_sharding,
+            None,
         )
         diff_step_out_sharding: Any = (
             get_sharding_for_spec(PartitionSpec()),
@@ -397,6 +405,7 @@ def main(
                 trainer.naive_train_state, 
                 example_batch['hubert_feature'], 
                 example_batch['f0_feature'],
+                example_batch['vol_feature'],
                 example_batch['mel_feature'], 
                 step_key
             )
@@ -432,6 +441,6 @@ def main(
 
 if __name__ == "__main__":
     jax.config.update("jax_default_prng_impl", "unsafe_rbg")
-    if "xla_tpu_spmd_rng_bit_generator_unsafe" not in os.environ.get("LIBTPU_INIT_ARGS", ""):
-        os.environ["LIBTPU_INIT_ARGS"] = os.environ.get("LIBTPU_INIT_ARGS", "") + " --xla_tpu_spmd_rng_bit_generator_unsafe=true"
+    # if "xla_tpu_spmd_rng_bit_generator_unsafe" not in os.environ.get("LIBTPU_INIT_ARGS", ""):
+    #     os.environ["LIBTPU_INIT_ARGS"] = os.environ.get("LIBTPU_INIT_ARGS", "") + " --xla_tpu_spmd_rng_bit_generator_unsafe=true"
     fire.Fire(main)

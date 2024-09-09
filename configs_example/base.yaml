@@ -1,53 +1,48 @@
 train:
-  model: "diffusion-svc"
+  #model: "diffusion-svc"
   seed: 1234
-  learning_rate: 1e-5
-  betas: [0.9, 0.99]
-  lr_decay: 0.999875
-  total_steps: 10000 # for lr exponential decay
+  learning_rate: 5e-5
+  #betas: [0.9, 0.99] 
+  #lr_decay: 0.999875
+  total_steps: 1000000 # for lr exponential decay
   max_to_keep : 5
 #############################
 data: 
-  speaker_files: "speaker2id.csv"
-  segment_size: 8000  # WARNING: base on hop_length
+  speaker_files: "speaker2id.csv" # if this is not exist , speaker_id is always 0
+  segment_size: 100 # x / 320 = this value because hop_length = 320
+  #segment_size: 8000  # WARNING: base on hop_length
 #############################
 model_naive:
   type: 'LYNXNet' # LYNXNet is thr other name of ConformerNaiveEncoder(NaiveNet)
-  n_layers: 3
-  n_chans: 256
-  simple_stack: false # use simple stack for unit emb
-  out_put_norm: true # norm and weight_norm in last layer
+  n_layers: 8
+  n_chans: 1024
+  #simple_stack: false # use simple stack for unit emb
+  #out_put_norm: true # norm and weight_norm in last layer
   expansion_factor: 2
   kernel_size: 31
-  conv_model_type: 'mode1'
-  num_heads: 8
-  use_norm: false # pre-norm for every layers
-  conv_only: true # use Transformer block with conv block, if false
-  conv_dropout: 0.0
+  #conv_model_type: 'mode1'
+  num_heads: 16
+  use_norm: false #  [not working] pre-norm for every layers 
+  conv_only: true # [not working]  use Transformer block with conv block, if false
+  conv_dropout: 0.1
   atten_dropout: 0.1
-  use_weight_norm: false
-  use_pitch_aug: false  
+  use_weight_norm: false #  [not working]
+  use_pitch_aug: false  #  [not working]
   n_spk: 1 # max number of different speakers
-Gaussian: 
-  sample_shape: [128,172]
-  loss: 'l1'
-  timesteps: 1000
-  sampling_timesteps: 1000
-  objective: 'predict_noise'
-  beta_schedule: 'linear'
-  scale_factor: 1
-  noise_type: 'normal'
-  self_condition: True
+model_diff:
+  dim: 1024
+  conv_dropout: 0.0
+  atten_dropout: 0.0
 log:
   info_interval: 100
   eval_interval: 1000
   save_interval: 1000
-  pth_dir: 'gs://[some google bucket path]/diff_svc_chkpt' # or absolute path
+  pth_dir: 'gs://[some google bucket path]/chkpt' # gcs bucket path or absolute path
   log_dir: 'logs'
 #############################
 data_loader:
-  dataset_path: "[need to be absolute path]/bucket/diff_svc_ds/*.arrayrecord"
-  host_number: 1
-  global_batch_size: 16
-  num_epochs: 1000
-  worker_count: 1
+  dataset_path: "[need to be absolute path]/*.arrayrecord"
+  host_number: 1 
+  global_batch_size: 128
+  num_epochs: -1 # -1 means infinite
+  worker_count: 8

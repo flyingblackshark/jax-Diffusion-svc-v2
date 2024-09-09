@@ -7,7 +7,6 @@ from flax.core import FrozenDict
 from dataclasses import dataclass
 from PIL import Image
 from tqdm import tqdm
-from utils import denormalize_images
 
 ln = False
 
@@ -60,7 +59,7 @@ def rectified_flow_step(
     prng_key: Array,
     training: bool = True,
 ) -> Tuple[Array, Optional[TrainState]]:
-    prng_key, step_key = random.split(prng_key)
+    prng_key, step_key,dropout_key = random.split(prng_key,3)
 
     def rectified_flow_loss(params: FrozenDict, x: Array, cond: Array, rng_key: Array):
         """
@@ -79,7 +78,7 @@ def rectified_flow_step(
         # zt is the mixture of x and z1 at timestep t
         zt = (1 - texp) * x + texp * z1
         # vtheta is the output of the model - predicts velocity at timestep t
-        vtheta = state.apply_fn({"params": params}, zt, t, cond, rng_key, training)
+        vtheta = state.apply_fn({"params": params}, zt, t, cond, rng_key, training,rngs={'rnorms':step_key,'dropout': dropout_key})
 
         # MSE of the model output and the noise
         # can think of this as predicting velocity for each timestep, with the expected
@@ -159,6 +158,7 @@ def rectified_flow_sample(
     cond: Array,
     rng_key: Array,
     sample_steps: int = 30,
+    t_start:float = 0.,
     cfg: float = 2.0,
 ):
     b = z.shape[0]
@@ -168,7 +168,7 @@ def rectified_flow_sample(
     #outs = [z]
 
     for i in tqdm(range(sample_steps, 0, -1), desc="Sampling", leave=False):
-        t = i / sample_steps
+        t = i * (1 - t_start) / sample_steps
         t = jnp.array([t] * b)
         #outs.append(z)
         z = sample_loop(

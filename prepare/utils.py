@@ -32,7 +32,7 @@ class Volume_Extractor:
         if sr is not None:
             assert self.hop_size_follow_input
             self.hop_size = self.block_size * sr / self.model_sampling_rate
-        n_frames = int(len(audio) // self.hop_size) + 1
+        n_frames = int(len(audio) // self.hop_size)
         audio2 = audio ** 2
         audio2 = np.pad(audio2, (int(self.hop_size // 2), int((self.hop_size + 1) // 2)), mode='reflect')
         volume = np.array(

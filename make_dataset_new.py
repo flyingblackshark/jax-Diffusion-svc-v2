@@ -12,7 +12,7 @@ def process_file(dsPath,spks,listPath,outPath):
     for file in os.listdir(f"{listPath}/{spks}"):
         if file.endswith(".wav"):
             file = file[:-4]
-            #wav, sr = librosa.load(f"{dsPath}/waves-32k/{spks}/{file}.wav", sr=32000)
+            # wav, sr = librosa.load(f"{dsPath}/waves-44k/{spks}/{file}.wav", sr=44100)
             #spec = jnp.load(f"{dsPath}/spec/{spks}/{file}.spec.npy")
             f0 = jnp.load(f"{dsPath}/pitch/{spks}/{file}.pit.npy")
             vol = jnp.load(f"{dsPath}/vol/{spks}/{file}.vol.npy")
