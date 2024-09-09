@@ -18,7 +18,7 @@ def get_dataset(hp,mesh):
     )
     operations = []
     operations.append(utils.ParseFeatures(hp))
-    operations.append(utils.SliceToLength(100))
+    operations.append(utils.SliceToLength(hp.data.segment_size))
     operations.append(grain.python.Batch(batch_size=hp.data_loader.global_batch_size // jax.process_count(), drop_remainder=False))
     dataloader = grain.python.DataLoader(
         data_source=dataset,
