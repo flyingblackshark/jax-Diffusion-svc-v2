@@ -32,33 +32,36 @@ def write_result(name,data,length,outPath,spks):
     np.save(f"{outPath}/{spks}/{name}.mel",data[:length])
 
 def batch_process_mel(files,batch_size,outPath,wavPath,spks,mesh):
-    start_time = time.time()
+    
     x_sharding = NamedSharding(mesh,PartitionSpec('data'))
     jitted_get_mel = jax.jit(get_mel, in_shardings=(x_sharding),out_shardings=x_sharding)
-    i = 0
-    mel_result = []
-    pool = get_context("spawn").Pool(processes=8)
-    #(audio_data ,estimated_length,name) 
-    res = pool.map(partial(load_audio,spks=spks,wavPath=wavPath), files)
-    audio_data = list(map(lambda a:a[0],res))
-    length_list = list(map(lambda a:a[1],res))
-    name_list = list(map(lambda a:a[2],res))
-    for i in range(len(res)):
-        audio_data[i] = jnp.pad(audio_data[i],(0,MAX_LENGTH-audio_data[i].shape[0]))
-    i = 0
-    while i * batch_size < len(audio_data) :
-        print(f"{(i+1)*batch_size}/{len(files)}")
-        batch_data = audio_data[i*batch_size:(i+1)*batch_size]
-        B_padding = batch_size - len(batch_data)
-        batch_data = jnp.asarray(batch_data)
-        batch_data = jnp.pad(batch_data,((0,B_padding),(0,0)))
-        batch_mel = jitted_get_mel(batch_data)
-        batch_mel = batch_mel[:batch_size-B_padding]
-        mel_result.extend(batch_mel)
-        i+=1
-    mel_result = list(map(np.asarray,mel_result))
-    pool.starmap(partial(write_result,outPath=outPath,spks=spks), zip(name_list,mel_result,length_list))
-    print("Elapsed time: {:.2f} sec".format(time.time() - start_time))
+    global_batch_size = 1024
+    total_rounds = len(files) // global_batch_size + 1
+    for i in range(total_rounds):
+        batch_files = files[i*global_batch_size:(i+1)*global_batch_size]
+        mel_result = []
+        pool = get_context("spawn").Pool(processes=8)
+        #(audio_data ,estimated_length,name) 
+        res = pool.map(partial(load_audio,spks=spks,wavPath=wavPath), batch_files)
+        audio_data = list(map(lambda a:a[0],res))
+        length_list = list(map(lambda a:a[1],res))
+        name_list = list(map(lambda a:a[2],res))
+        for j in range(len(res)):
+            audio_data[j] = np.pad(audio_data[j],(0,MAX_LENGTH-audio_data[j].shape[0]))
+        j = 0
+        while j * batch_size < len(audio_data) :
+            print(f"{(j+1)*batch_size}/{len(batch_files)}")
+            batch_data = audio_data[j*batch_size:(j+1)*batch_size]
+            B_padding = batch_size - len(batch_data)
+            batch_data = jnp.asarray(batch_data)
+            batch_data = jnp.pad(batch_data,((0,B_padding),(0,0)))
+            batch_mel = jitted_get_mel(batch_data)
+            batch_mel = batch_mel[:batch_size-B_padding]
+            mel_result.extend(batch_mel)
+            j+=1
+        mel_result = list(map(np.asarray,mel_result))
+        pool.starmap(partial(write_result,outPath=outPath,spks=spks), zip(name_list,mel_result,length_list))
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-w", "--wav", help="wav", dest="wav", required=True)
@@ -76,6 +79,8 @@ if __name__ == "__main__":
     for spks in os.listdir(wavPath):
         if os.path.isdir(f"{wavPath}/{spks}"):
             os.makedirs(f"{outPath}/{spks}", exist_ok=True)
+            start_time = time.time()
             files = [f for f in os.listdir(f"{wavPath}/{spks}") if f.endswith(".wav")]
             batch_process_mel(files,batch_size,outPath,wavPath,spks,mesh)
+            print("Elapsed time: {:.2f} sec".format(time.time() - start_time))
     

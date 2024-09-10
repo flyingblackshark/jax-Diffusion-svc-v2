@@ -64,7 +64,7 @@ class Trainer:
             use_mlp=True,
             mlp_factor=4,
             condition_dim=256,
-            num_layers=20,
+            num_layers=hp.model_diff.num_layers,
             expansion_factor=2,
             kernel_size=31,
             conv_only=True,
