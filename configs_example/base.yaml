@@ -13,11 +13,8 @@ data:
   #segment_size: 8000  # WARNING: base on hop_length
 #############################
 model_naive:
-  type: 'LYNXNet' # LYNXNet is thr other name of ConformerNaiveEncoder(NaiveNet)
   n_layers: 8
   n_chans: 1024
-  #simple_stack: false # use simple stack for unit emb
-  #out_put_norm: true # norm and weight_norm in last layer
   expansion_factor: 2
   kernel_size: 31
   num_heads: 16
