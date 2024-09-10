@@ -20,7 +20,6 @@ model_naive:
   #out_put_norm: true # norm and weight_norm in last layer
   expansion_factor: 2
   kernel_size: 31
-  #conv_model_type: 'mode1'
   num_heads: 16
   use_norm: false #  [not working] pre-norm for every layers 
   conv_only: true # [not working]  use Transformer block with conv block, if false

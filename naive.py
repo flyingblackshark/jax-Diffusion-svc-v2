@@ -55,8 +55,6 @@ class Unit2MelNaive(nn.Module):
             conv_dropout=self.conv_dropout,
             atten_dropout=self.atten_dropout,
             precision=self.precision
-            # conv_model_type=self.conv_model_type,
-            # conv_model_activation=self.conv_model_activation
         )
 
         self.norm = nn.LayerNorm()
