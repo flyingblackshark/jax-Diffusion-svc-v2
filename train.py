@@ -57,7 +57,6 @@ class Trainer:
         )
         self.naive_model = Unit2MelNaive(
                     n_spk=hp.model_naive.n_spk,
-                    use_pitch_aug=hp.model_naive.use_pitch_aug,
                     out_dims=128,
                     use_speaker_encoder=False,
                     speaker_encoder_out_channels=256,
@@ -68,7 +67,6 @@ class Trainer:
                     num_heads=hp.model_naive.num_heads,
                     conv_dropout=hp.model_naive.conv_dropout,
                     atten_dropout=hp.model_naive.atten_dropout,
-                    use_weight_norm=hp.model_naive.use_weight_norm,
                     precision=jax.lax.Precision.DEFAULT)
         
         n_devices = len(jax.devices())

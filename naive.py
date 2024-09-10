@@ -5,9 +5,7 @@ import jax
 from model_conformer_naive import ConformerNaiveEncoder
 
 class Unit2MelNaive(nn.Module):
-    #input_channel:int
     n_spk:int
-    use_pitch_aug:bool=False
     out_dims:int=128
     use_speaker_encoder:bool=False
     speaker_encoder_out_channels:int=256
@@ -18,15 +16,10 @@ class Unit2MelNaive(nn.Module):
     num_heads:int = 8
     conv_dropout:float = 0.
     atten_dropout:float = 0.1
-    use_weight_norm:bool = False
     precision : jax.lax.Precision = jax.lax.Precision.HIGHEST
     def setup(self):
         self.f0_embed = nn.Dense(self.n_chans)
         self.volume_embed = nn.Dense(self.n_chans)
-        if self.use_pitch_aug:
-            self.aug_shift_embed = nn.Dense(self.n_chans, use_bias=False)
-        else:
-            self.aug_shift_embed = None
 
         if self.use_speaker_encoder:
             self.spk_embed = nn.Dense(self.n_chans, use_bias=False)
@@ -58,8 +51,7 @@ class Unit2MelNaive(nn.Module):
         self.dense_out = nn.WeightNorm(nn.Dense(self.out_dims,precision=self.precision))
 
 
-    def __call__(self, ppg, f0, vol, spk_id=None, spk_mix_dict=None, aug_shift=None,
-                gt_spec=None, train=True):
+    def __call__(self, ppg, f0, vol, spk_id=None, spk_mix_dict=None, t_spec=None, train=True):
 
         '''
         input:
@@ -88,8 +80,6 @@ class Unit2MelNaive(nn.Module):
         #                 x = x + v * self.spk_embed(spk_id_torch - 1)
         #         else:
         #             x = x + self.spk_embed(spk_id - 1)
-        # if self.aug_shift_embed is not None and aug_shift is not None:
-        #     x = x + self.aug_shift_embed(aug_shift / 5)
         x = self.decoder(x,train=train)
         x = self.norm(x)
         x = self.dense_out(x)
