@@ -19,27 +19,13 @@ from jax import random
 from jax.experimental import mesh_utils
 from jax.sharding import Mesh, NamedSharding, PartitionSpec
 from jax.stages import Compiled, Wrapped
-# from tensorboardX import SummaryWriter
-# from tqdm import tqdm
 from omegaconf import OmegaConf
 from models import NaiveV2Diff
 from naive import Unit2MelNaive
 from sampling import rectified_flow_sample, rectified_flow_step
 from step import naive_step
 from profiling import memory_usage_params, trace_module_calls, get_peak_flops
-
 jax.experimental.compilation_cache.compilation_cache.set_cache_dir("jit_cache")
-
-
-#print("JAX devices: ", jax.devices())
-#logger.info(f"JAX host count: {jax.device_count()}")
-
-
-# def fmt_float_display(val: float | int) -> str:
-#     if val > 1e3:
-#         return f"{val:.2e}"
-#     return f"{val:3.3f}"
-
 
 class Trainer:
 
@@ -129,12 +115,15 @@ class Trainer:
                 tx=optimizer 
             )
             return train_state
-        logger.info(f"Available devices: {jax.devices()}")
+        if jax.process_index() == 0:
+            logger.info(f"Available devices: {jax.devices()}")
 
         # Create a device mesh according to the physical layout of the devices.
         # device_mesh is just an ndarray
         device_mesh = mesh_utils.create_device_mesh((n_devices, 1))
-        logger.info(f"Device mesh: {device_mesh}")
+
+        if jax.process_index() == 0:
+            logger.info(f"Device mesh: {device_mesh}")
 
         # Async checkpointer for saving checkpoints across processes
         #base_dir_abs = os.getcwd()
@@ -151,8 +140,8 @@ class Trainer:
         # so that sharding a tensor along the axes shards according to the corresponding device_mesh layout.
         # i.e. with device layout of (8, 1), data would be replicated to all devices, and model would be replicated to 1 device.
         self.mesh = Mesh(device_mesh, axis_names=("data", "model"))
-
-        logger.info(f"Mesh: {self.mesh}")
+        if jax.process_index() == 0:
+            logger.info(f"Mesh: {self.mesh}")
 
 
 
@@ -185,8 +174,8 @@ class Trainer:
         naive_train_state_sharding = nn.get_sharding(naive_train_state_sharding_shape, self.mesh)
         diff_input_sharding: Any = (x_sharding, x_sharding, x_sharding)
         naive_input_sharding: Any = (x_sharding, x_sharding, x_sharding)
-
-        logger.info(f"Initializing model...")
+        if jax.process_index() == 0:
+            logger.info(f"Initializing model...")
         # Shard the train_state so so that it's replicated across devices
         jit_create_diff_train_state_fn = jax.jit(
             create_diff_train_state,
@@ -208,10 +197,11 @@ class Trainer:
         )
         diff_total_bytes, diff_total_params = memory_usage_params(self.diff_train_state.params)
         naive_total_bytes, naive_total_params = memory_usage_params(self.naive_train_state.params)
-        logger.info(f"Diff Model parameter count: {diff_total_params} using: {diff_total_bytes}")
-        logger.info(f"Naive Model parameter count: {naive_total_params} using: {naive_total_bytes}")
+        if jax.process_index() == 0:
+            logger.info(f"Diff Model parameter count: {diff_total_params} using: {diff_total_bytes}")
+            logger.info(f"Naive Model parameter count: {naive_total_params} using: {naive_total_bytes}")
 
-        logger.info("JIT compiling step functions...")
+            logger.info("JIT compiling step functions...")
 
         diff_step_in_sharding: Any = (
             diff_train_state_sharding,
@@ -253,15 +243,17 @@ class Trainer:
         )
 
         if profile:
-            logger.info("AOT compiling step functions...")
+            if jax.process_index() == 0:
+                logger.info("AOT compiling step functions...")
             compiled_step: Compiled = self.diff_train_step.lower(
                 self.diff_train_state, *diff_input_values[:2], init_key
             ).compile()
             train_cost_analysis: Dict = compiled_step.cost_analysis()[0]  # type: ignore
             self.flops_for_step = train_cost_analysis.get("flops", 0)
-            logger.info(
-                f"Steps compiled, train cost analysis FLOPs: {self.flops_for_step}"
-            )
+            if jax.process_index() == 0:
+                logger.info(
+                    f"Steps compiled, train cost analysis FLOPs: {self.flops_for_step}"
+                )
         else:
             self.flops_for_step = 0
 
