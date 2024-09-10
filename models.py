@@ -84,7 +84,6 @@ class NaiveV2Diff(nn.Module):
     dim:int=512
     use_mlp:bool=True
     mlp_factor:int=4
-    condition_dim:int=256
     num_layers:int=20
     expansion_factor:int=2
     kernel_size:int=31
