@@ -52,7 +52,7 @@ class Trainer:
     ) -> None:
         self.init_step = 0
         self.optimizer = optax.chain(
-            optax.adamw(learning_rate=hp.train.learning_rate),
+            optax.adamw(learning_rate=hp.train.learning_rate,b1=hp.train.betas[0],b2=hp.train.betas[1]),
         )
         init_key, self.train_key = random.split(rng, 2)
 
@@ -66,8 +66,6 @@ class Trainer:
             num_layers=hp.model_diff.num_layers,
             expansion_factor=2,
             kernel_size=31,
-            conv_only=True,
-            use_norm=False,
             conv_dropout=hp.model_diff.conv_dropout,
             atten_dropout=hp.model_diff.atten_dropout,
         )
@@ -82,8 +80,6 @@ class Trainer:
                     expansion_factor=hp.model_naive.expansion_factor,
                     kernel_size=hp.model_naive.kernel_size,
                     num_heads=hp.model_naive.num_heads,
-                    use_norm=hp.model_naive.use_norm,
-                    conv_only=hp.model_naive.conv_only,
                     conv_dropout=hp.model_naive.conv_dropout,
                     atten_dropout=hp.model_naive.atten_dropout,
                     use_weight_norm=hp.model_naive.use_weight_norm,
