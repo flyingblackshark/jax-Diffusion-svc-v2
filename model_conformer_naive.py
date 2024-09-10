@@ -8,8 +8,6 @@ class ConformerNaiveEncoder(nn.Module):
     dim_model: int
     expansion_factor: int = 2
     kernel_size: int = 31
-    use_norm: bool = False
-    conv_only: bool = True
     conv_dropout: float = 0.1
     atten_dropout: float = 0.1
     precision : jax.lax.Precision = jax.lax.Precision.HIGHEST
@@ -25,7 +23,6 @@ class ConformerNaiveEncoder(nn.Module):
                 expansion_factor=self.expansion_factor,
                 kernel_size=self.kernel_size,
                 num_heads=self.num_heads,
-                conv_only=self.conv_only,
                 conv_dropout=self.conv_dropout,
                 atten_dropout=self.atten_dropout,
                 precision=self.precision,
@@ -35,7 +32,6 @@ class ConformerNaiveEncoder(nn.Module):
         #         expansion_factor=self.expansion_factor,
         #         kernel_size=self.kernel_size,
         #         num_heads=self.num_heads,
-        #         conv_only=self.conv_only,
         #         conv_dropout=self.conv_dropout,
         #         atten_dropout=self.atten_dropout,
         #         precision=self.precision,
@@ -48,8 +44,6 @@ class CFNEncoderLayer(nn.Module):
     expansion_factor: int = 2
     kernel_size: int = 31
     num_heads: int = 8
-    use_norm: bool = False
-    conv_only: bool = True
     conv_dropout: float = 0.
     atten_dropout: float = 0.1
     precision : jax.lax.Precision = jax.lax.Precision.HIGHEST
@@ -60,7 +54,6 @@ class CFNEncoderLayer(nn.Module):
             self.dim_model,
             expansion_factor=self.expansion_factor,
             kernel_size=self.kernel_size,
-            use_norm=self.use_norm,
             dropout=self.conv_dropout,
             precision=self.precision,
             train=self.train
@@ -78,7 +71,6 @@ class ConformerConvModule(nn.Module):
     expansion_factor:int=2
     kernel_size:int=31
     dropout:float=0.
-    use_norm:bool=False
     precision : jax.lax.Precision = jax.lax.Precision.HIGHEST
     train:bool = True
     @nn.compact

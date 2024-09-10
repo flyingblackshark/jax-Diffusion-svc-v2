@@ -16,8 +16,6 @@ class Unit2MelNaive(nn.Module):
     expansion_factor:int = 2
     kernel_size:int = 31
     num_heads:int = 8
-    use_norm:bool = False
-    conv_only:bool = True
     conv_dropout:float = 0.
     atten_dropout:float = 0.1
     use_weight_norm:bool = False
@@ -50,8 +48,6 @@ class Unit2MelNaive(nn.Module):
             dim_model=self.n_chans,
             expansion_factor=self.expansion_factor,
             kernel_size=self.kernel_size,
-            use_norm=self.use_norm,
-            conv_only=self.conv_only,
             conv_dropout=self.conv_dropout,
             atten_dropout=self.atten_dropout,
             precision=self.precision

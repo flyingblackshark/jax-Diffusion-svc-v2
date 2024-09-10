@@ -48,9 +48,6 @@ class TimestepEmbedder(nn.Module):
 class NaiveV2DiffLayer(nn.Module):
     dim_model: int
     dim_cond: int
-    num_heads: int = 4
-    use_norm: bool = False
-    conv_only: bool = True
     conv_dropout: float = 0.
     atten_dropout: float = 0.1
     use_mlp=True
@@ -63,7 +60,6 @@ class NaiveV2DiffLayer(nn.Module):
             expansion_factor=self.expansion_factor,
             kernel_size=self.kernel_size,
             dropout=self.conv_dropout,
-            use_norm=self.use_norm
         )
 
         self.diffusion_step_projection = nn.Conv(self.dim_model, 1)
@@ -72,12 +68,8 @@ class NaiveV2DiffLayer(nn.Module):
     def __call__(self, x, condition=None, diffusion_step=None):
         res_x = x
         x = x + self.diffusion_step_projection(diffusion_step) + self.condition_projection(condition)
-        #x = x
-
         x = self.conformer(x)  # (#batch, dim_model, length)
-
         x = x + res_x
-        #x = x.transpose(0,2,1)
         return x  # (#batch, length, dim_model)
 class NaiveV2Diff(nn.Module):
     mel_channels:int=128
@@ -87,8 +79,6 @@ class NaiveV2Diff(nn.Module):
     num_layers:int=20
     expansion_factor:int=2
     kernel_size:int=31
-    conv_only:bool=True
-    use_norm:bool=False
     conv_dropout:float=0.0
     atten_dropout:float=0.1
     def setup(self):
@@ -104,9 +94,6 @@ class NaiveV2Diff(nn.Module):
                 NaiveV2DiffLayer(
                     dim_model=self.dim,
                     dim_cond=self.dim,
-                    num_heads=8,
-                    use_norm=self.use_norm,
-                    conv_only=self.conv_only,
                     conv_dropout=self.conv_dropout,
                     atten_dropout=self.atten_dropout
                 )
