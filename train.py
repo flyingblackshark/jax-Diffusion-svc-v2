@@ -118,10 +118,12 @@ class Trainer:
 
         # Create a device mesh according to the physical layout of the devices.
         # device_mesh is just an ndarray
-        device_mesh = mesh_utils.create_device_mesh((n_devices, 1))
+        device_mesh_diff = mesh_utils.create_device_mesh((n_devices, 1))
+        device_mesh_naive = mesh_utils.create_device_mesh((1,n_devices))
 
         if jax.process_index() == 0:
-            logger.info(f"Device mesh: {device_mesh}")
+            logger.info(f"Diff Device mesh: {device_mesh_diff}")
+            logger.info(f"Naive Device mesh: {device_mesh_naive}")
 
         # Async checkpointer for saving checkpoints across processes
         #base_dir_abs = os.getcwd()
@@ -137,21 +139,24 @@ class Trainer:
         # This object corresponds the axis names to the layout of the physical devices,
         # so that sharding a tensor along the axes shards according to the corresponding device_mesh layout.
         # i.e. with device layout of (8, 1), data would be replicated to all devices, and model would be replicated to 1 device.
-        self.mesh = Mesh(device_mesh, axis_names=("data", "model"))
+        self.mesh_diff = Mesh(device_mesh_diff, axis_names=("data", "model"))
+        self.mesh_naive = Mesh(device_mesh_naive, axis_names=("data", "model"))
         if jax.process_index() == 0:
-            logger.info(f"Mesh: {self.mesh}")
+            logger.info(f"Diff Mesh: {self.mesh_diff}")
+            logger.info(f"Naive Mesh: {self.mesh_naive}")
 
 
 
-        def get_sharding_for_spec(pspec: PartitionSpec) -> NamedSharding:
-            """
-            Get a NamedSharding for a given PartitionSpec, and the device mesh.
-            A NamedSharding is simply a combination of a PartitionSpec and a Mesh instance.
-            """
-            return NamedSharding(self.mesh, pspec)
+        # def get_sharding_for_spec(pspec: PartitionSpec) -> NamedSharding:
+        #     """
+        #     Get a NamedSharding for a given PartitionSpec, and the device mesh.
+        #     A NamedSharding is simply a combination of a PartitionSpec and a Mesh instance.
+        #     """
+        #     return NamedSharding(self.mesh, pspec)
 
         # This shards the first dimension of the input data (batch dim) across the data axis of the mesh.
-        x_sharding = get_sharding_for_spec(PartitionSpec("data"))
+        x_sharding_diff = NamedSharding(self.mesh_diff, PartitionSpec("data"))
+        x_sharding_naive = NamedSharding(self.mesh_naive,PartitionSpec("data","model"))
 
         # Returns a pytree of shapes for the train state
         diff_train_state_sharding_shape = jax.eval_shape(
@@ -168,10 +173,10 @@ class Trainer:
         )
 
         # Get the PartitionSpec for all the variables in the train state
-        diff_train_state_sharding = nn.get_sharding(diff_train_state_sharding_shape, self.mesh)
-        naive_train_state_sharding = nn.get_sharding(naive_train_state_sharding_shape, self.mesh)
-        diff_input_sharding: Any = (x_sharding, x_sharding, x_sharding)
-        naive_input_sharding: Any = (x_sharding, x_sharding, x_sharding)
+        diff_train_state_sharding = nn.get_sharding(diff_train_state_sharding_shape, self.mesh_naive)
+        naive_train_state_sharding = nn.get_sharding(naive_train_state_sharding_shape, self.mesh_diff)
+        diff_input_sharding: Any = (x_sharding_diff, x_sharding_diff, x_sharding_diff)
+        naive_input_sharding: Any = (x_sharding_naive, x_sharding_naive, x_sharding_naive)
         if jax.process_index() == 0:
             logger.info(f"Initializing model...")
         # Shard the train_state so so that it's replicated across devices
@@ -203,26 +208,26 @@ class Trainer:
 
         diff_step_in_sharding: Any = (
             diff_train_state_sharding,
-            x_sharding,
-            x_sharding,
+            x_sharding_diff,
+            x_sharding_diff,
             None,
         )
         naive_step_in_sharding: Any = (
             naive_train_state_sharding,
-            x_sharding,
-            x_sharding,
-            x_sharding,
-            x_sharding,
+            x_sharding_naive,
+            x_sharding_naive,
+            x_sharding_naive,
+            x_sharding_naive,
             None,
         )
         diff_step_out_sharding: Any = (
-            get_sharding_for_spec(PartitionSpec()),
+            NamedSharding(self.mesh_diff,PartitionSpec()),
             diff_train_state_sharding,
         )
         naive_step_out_sharding: Any = (
-            get_sharding_for_spec(PartitionSpec()),
+            NamedSharding(self.mesh_naive,PartitionSpec()),
             naive_train_state_sharding,
-            x_sharding
+            x_sharding_diff
         )
         self.diff_train_step: Wrapped = jax.jit(
             functools.partial(rectified_flow_step, training=True),
@@ -368,7 +373,7 @@ def main(
     if trainer.checkpoint_manager.latest_step() is not None:
         trainer.restore_checkpoint()
 
-    data_iterator = get_dataset(hp,trainer.mesh)
+    data_iterator = get_dataset(hp,trainer.mesh_naive)
     example_batch = None
 
     for step in range(trainer.init_step, hp.train.total_steps):
