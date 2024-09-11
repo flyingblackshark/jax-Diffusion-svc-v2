@@ -10,3 +10,4 @@ omegaconf
 grain
 tensorflow-cpu
 transformers
+audax
