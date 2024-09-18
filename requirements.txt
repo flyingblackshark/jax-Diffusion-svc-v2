@@ -11,3 +11,5 @@ grain
 tensorflow-cpu
 transformers
 audax
+matplotlib
+jax_fcpe
