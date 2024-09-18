@@ -13,7 +13,7 @@ data:
 #############################
 model_naive:
   n_layers: 8
-  n_chans: 1024
+  n_chans: 2048
   expansion_factor: 2
   kernel_size: 31
   num_heads: 16
@@ -21,7 +21,7 @@ model_naive:
   atten_dropout: 0.1
   n_spk: 1 # max number of different speakers
 model_diff:
-  dim: 1024
+  dim: 2048
   num_layers : 20
   conv_dropout: 0.0
   atten_dropout: 0.0

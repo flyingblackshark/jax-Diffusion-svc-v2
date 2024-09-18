@@ -15,15 +15,9 @@ from omegaconf import OmegaConf
 from scipy.io.wavfile import write
 
 import librosa
-from transformers import FlaxAutoModel,FlaxWav2Vec2ForCTC
-import audax.core
-import audax.core.functional
-import audax.core.stft
-import jax.numpy as jnp
-import audax
+from transformers import FlaxAutoModel
 from librosa.filters import mel as librosa_mel_fn
 from jax_fcpe.utils import load_model
-import jax
 from jax.experimental.compilation_cache import compilation_cache as cc
 from prepare.utils import get_mel,get_f0,Volume_Extractor
 cc.set_cache_dir("./jax_cache")
@@ -145,7 +139,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str,  default="./configs/base.yaml",
                         help="yaml file for config.")
-    parser.add_argument('--wave', type=str,  default="./test.wav",
+    parser.add_argument('--wave', type=str,  default="./test.mp3",
                         help="Path of raw audio.")
     parser.add_argument('--spk', type=str,  default="AURORA",
                         help="Path of speaker.")
